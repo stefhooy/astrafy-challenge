@@ -134,8 +134,32 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   BigQuery data, all 38 dbt tests passing.** Moving from pipeline construction to answering
   Exercises 1-3 with real query output next.
 
+- Ran and documented Exercises 1-3 in `docs/Exercises_Queries.md`, structured into two
+  sections: the `dbt show --inline` commands/results, and equivalent raw BigQuery SQL run
+  directly in Studio as an independent cross-check. Both match exactly.
+  - Along the way, refined the BigQuery SQL versions: filtering on `order_date BETWEEN
+    '2026-01-01' AND '2026-12-31'` instead of `EXTRACT(YEAR FROM order_date) = 2026`, since
+    `fct_orders` is partitioned by `order_date` and a direct range comparison lets BigQuery
+    prune partitions (wrapping the partition column in `EXTRACT()` in a `WHERE` clause can
+    block pruning). Grouped by month using `FORMAT_DATE('%Y-%m', order_date)` for a
+    human-readable, unambiguous label (chosen over `DATE_TRUNC` since we already scope to a
+    single year, and over bare `EXTRACT(MONTH ...)` for readability).
+  - Results: **Ex1: 2,573 orders in 2026.** Ex2/Ex3: full monthly breakdown in
+    `Exercises_Queries.md`. Notable pattern: November has the highest order count (389, ~85%
+    above the ~215 monthly average) but the lowest avg products/order (10.48) -- consistent
+    with a Black Friday/holiday effect (more orders, each smaller).
+- Confirmed all 6 exercises are functionally complete and verified against real BigQuery data
+  (re-checked Ex4/5/6 requirements line-by-line against `fct_orders` and
+  `fct_orders_segmented`).
+- Wrote `docs/../interview-prep-notes.md` (outside the repo, personal prep only) with
+  plain-language explanations for the interview: the layered pipeline walkthrough, why
+  Ex4/5/6 were built before Ex1/2/3, and a full breakdown of the RANGE BETWEEN segmentation
+  logic.
+
 ### Next up
 
-- Run the Ex1-3 queries against `fct_orders`, record the exact SQL + results in the README.
-- Write up the final README (setup instructions, all 6 exercise answers, architecture
-  summary).
+- Write up the final `README.md`: replace the placeholder Setup and Exercise answers sections
+  with the real content (setup steps already in `docs/SETUP.md`, exercise answers already in
+  `docs/Exercises_Queries.md` -- just need to be linked/summarized from the main README).
+- Final review pass before submission (re-read design spec, README, and all dbt docs for
+  consistency; confirm `dbt build` is clean end-to-end one more time).
