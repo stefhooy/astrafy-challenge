@@ -1,0 +1,65 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: >
+      Exercise 4. 1 row per order for {{ var('orders_mart_years') }}, matching the shape of
+      the source orders table with qty_product added. Partitioned by order_date, clustered by
+      customer_id for cost-efficient filtering/joins at scale.
+    columns:
+      - name: order_id
+        description: Unique order identifier.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Identifier of the customer who placed the order.
+        data_tests:
+          - not_null
+      - name: order_date
+        description: Date the order was placed.
+        data_tests:
+          - not_null
+      - name: net_sales
+        description: Net sales amount for the order.
+        data_tests:
+          - not_null
+      - name: qty_product
+        description: Total quantity of products in the order.
+        data_tests:
+          - not_null
+
+  - name: fct_orders_segmented
+    description: >
+      Exercise 6. 1 row per order for {{ var('segmentation_mart_year') }} only, matching the
+      shape of the source orders table with order_segmentation added. Partitioned by
+      order_date, clustered by order_segmentation then customer_id, since segment-filtered
+      queries (e.g. "show me VIP orders") are the expected access pattern for this table.
+    columns:
+      - name: order_id
+        description: Unique order identifier.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Identifier of the customer who placed the order.
+        data_tests:
+          - not_null
+      - name: order_date
+        description: Date the order was placed.
+        data_tests:
+          - not_null
+      - name: net_sales
+        description: Net sales amount for the order.
+        data_tests:
+          - not_null
+      - name: order_segmentation
+        description: >
+          New (this is the customer's 1st order in the trailing 12 months), Returning
+          (2nd-4th order), or VIP (5th+ order). See Exercise 5 / the design spec for the full
+          rule and its rationale.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['New', 'Returning', 'VIP']

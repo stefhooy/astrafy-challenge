@@ -108,6 +108,34 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   `orders.net_sales` matches summed `sales.net_sales` for every order, verified against real
   BigQuery data (not just the earlier local pandas check).
 
+- Built the intermediate layer: `int_orders_products_agg` (qty_product = SUM(qty) per order)
+  and `int_orders_enriched` (orders + qty_product + rolling 12-month order count via the
+  `UNIX_DATE`/`RANGE BETWEEN` windowed pattern + `order_segment` via
+  `macros/segment_from_order_count.sql`), computed over full order history.
+- `dbt run --select intermediate` / `dbt test --select intermediate`: both models built as
+  tables, **12/12 tests passing**, 0 errors.
+- Sanity-checked the segmentation distribution against real BigQuery output before building
+  marts on top of it: New 1,747 / Returning 1,121 / VIP 793 (sums to 3,661, matching total
+  order count exactly). Noted a caveat worth stating explicitly in the README: since the
+  dataset only starts 2025-07-09, orders early in that window are undercounted as "New"
+  relative to a customer's true (unobserved, pre-extract) history -- a data-boundary
+  limitation, not a pipeline bug.
+- Built the marts:
+  - `fct_orders` (Ex4): filters `int_orders_enriched` to `var('orders_mart_years')`
+    (2025+2026), table materialization, partitioned by `order_date`, clustered by
+    `customer_id`.
+  - `fct_orders_segmented` (Ex6): filters to `var('segmentation_mart_year')` (2026 only),
+    same partitioning, clustered by `order_segmentation` then `customer_id` since
+    segment-filtered queries are the expected access pattern.
+- `dbt run --select marts` / `dbt test --select marts`: both marts built successfully
+  (`fct_orders`: 3,661 rows; `fct_orders_segmented`: 2,573 rows, matching the earlier raw
+  2026-order count exactly), **13/13 tests passing**, 0 errors.
+- **Full pipeline (staging -> intermediate -> marts) is now built and verified against real
+  BigQuery data, all 38 dbt tests passing.** Moving from pipeline construction to answering
+  Exercises 1-3 with real query output next.
+
 ### Next up
 
-- Build the intermediate layer (order-grain aggregation + rolling 12-month segmentation).
+- Run the Ex1-3 queries against `fct_orders`, record the exact SQL + results in the README.
+- Write up the final README (setup instructions, all 6 exercise answers, architecture
+  summary).
