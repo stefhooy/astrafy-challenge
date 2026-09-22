@@ -1,0 +1,67 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: >
+      1 row per order, renamed/cast from raw.orders. Canonicalizes column naming
+      (orders_id -> order_id, customers_id -> customer_id, date_date -> order_date) and
+      casts net_sales to NUMERIC for money-safe precision.
+    columns:
+      - name: order_id
+        description: Unique order identifier.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Identifier of the customer who placed the order.
+        data_tests:
+          - not_null
+      - name: order_date
+        description: Date the order was placed.
+        data_tests:
+          - not_null
+      - name: net_sales
+        description: Net sales amount for the order.
+        data_tests:
+          - not_null
+
+  - name: stg_sales
+    description: >
+      1 row per order/product line, renamed/cast from raw.sales. Canonicalizes column naming
+      (products_id -> product_id, date_date -> order_date) and casts net_sales to NUMERIC.
+    columns:
+      - name: order_id
+        description: >
+          Order identifier this line belongs to. Not unique at this grain (multiple product
+          lines per order). One known value (5361303) has no matching row in stg_orders; the
+          relationships test below is set to warn rather than fail for this documented,
+          single-row exception. A new orphan appearing would still be a warning worth
+          investigating, not a silent failure.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+              config:
+                severity: warn
+      - name: customer_id
+        description: Identifier of the customer who placed the order.
+        data_tests:
+          - not_null
+      - name: product_id
+        description: Identifier of the product sold on this line.
+        data_tests:
+          - not_null
+      - name: order_date
+        description: Date the order was placed.
+        data_tests:
+          - not_null
+      - name: net_sales
+        description: Net sales amount for this order/product line.
+        data_tests:
+          - not_null
+      - name: qty
+        description: Quantity of the product sold on this line.
+        data_tests:
+          - not_null

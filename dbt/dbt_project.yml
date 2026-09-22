@@ -1,0 +1,37 @@
+name: 'astrafy_challenge'
+version: '1.0.0'
+config-version: 2
+
+profile: 'astrafy_challenge'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  # Year boundaries for the marts (Exercises 4 and 6). Kept as vars, not hardcoded in SQL,
+  # so re-pointing at a different reporting period is a one-line change.
+  orders_mart_years: [2025, 2026]
+  segmentation_mart_year: 2026
+
+  # Order-segmentation thresholds (Exercise 5): number of orders placed in the trailing
+  # 12 months, counted *before* the current order, that separate New / Returning / VIP.
+  returning_order_threshold: 1   # >= this many prior orders -> at least Returning
+  vip_order_threshold: 4         # >= this many prior orders -> VIP
+
+models:
+  astrafy_challenge:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: table
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts

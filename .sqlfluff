@@ -1,0 +1,10 @@
+[sqlfluff]
+templater = dbt
+dialect = bigquery
+
+[sqlfluff:templater:dbt]
+project_dir = ./dbt
+profiles_dir = C:\Users\steve\.dbt
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower

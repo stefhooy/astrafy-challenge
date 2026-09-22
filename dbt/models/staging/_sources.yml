@@ -1,0 +1,41 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Raw tables loaded from the challenge's Excel extracts via scripts/load_raw_data.py.
+      One-time static extracts (2025-07-09 to 2026-12-31), not an incrementally refreshed
+      source, so no freshness checks are configured here.
+    database: "{{ target.project }}"
+    schema: raw
+    tables:
+      - name: orders
+        description: "1 row per order. Source: orders_recrutement.xlsx."
+        columns:
+          - name: date_date
+            description: Date the order was placed.
+          - name: customers_id
+            description: Identifier of the customer who placed the order.
+          - name: orders_id
+            description: Unique order identifier.
+          - name: net_sales
+            description: Net sales amount for the order, as FLOAT64 in the raw layer.
+
+      - name: sales
+        description: >
+          1 row per order/product line. Source: sales_recrutement.xlsx. One order
+          (order_id 5361303) appears here without a matching row in `orders` — see
+          stg_sales.yml for how this is tested and documented.
+        columns:
+          - name: date_date
+            description: Date the order was placed.
+          - name: customer_id
+            description: Identifier of the customer who placed the order.
+          - name: order_id
+            description: Order identifier this line belongs to.
+          - name: products_id
+            description: Identifier of the product sold on this line.
+          - name: net_sales
+            description: Net sales amount for this order/product line, as FLOAT64 in the raw layer.
+          - name: qty
+            description: Quantity of the product sold on this line.
