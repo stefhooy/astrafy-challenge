@@ -185,9 +185,26 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   quality notes, testing summary, repo layout, and condensed setup steps linking out to the
   full guides (`SETUP.md`, `Exercises_Queries.md`, the design spec, `LOG.md`).
 
+- Ran `dbt build` (full pipeline, one command, from a clean state): **43 PASS, 1 WARN, 0
+  ERROR** across 4 tables, 2 views, and all 38 tests. Final end-to-end confirmation that
+  staging -> intermediate -> marts rebuilds correctly from scratch, not just piecemeal
+  per-layer as earlier in the build. The 1 WARN is the same known, documented orphan order
+  (5361303) discussed since day one, not a new issue -- confirmed and explained why `warn`
+  severity (not `error`) is the right call: it's a single known row in the *source* file
+  itself, not something this pipeline introduced, so failing the entire build on it every
+  time would be the wrong failure mode. Strengthened the README's data quality section with
+  this reasoning explicitly (what happens if a new orphan appears, or if this one gets fixed
+  upstream).
+- Re-read the full challenge brief (`THC - BI Engineer.docx`) once more end-to-end to confirm
+  Part 1 scope is fully covered: all 5 technical requirements + all 6 exercises. Also noted
+  the brief's submission instructions ("reply with the PDF from the design challenge + the
+  GitHub link") only fully apply once Parts 2/3 exist -- since Cyril confirmed only Part 1 is
+  in scope for now, the reply should just be the GitHub repo link, no PDF/Data Studio link
+  expected at this stage.
+
 ### Next up
 
 - Final review pass before submission (re-read design spec, README, and all dbt docs for
-  consistency; confirm `dbt build` is clean end-to-end one more time).
+  consistency).
 - Reply to the recruiter's take-home email with the GitHub repo link, per the brief's
-  submission instructions.
+  submission instructions (Part 1 only -- no PDF/Data Studio link expected).

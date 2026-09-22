@@ -102,9 +102,15 @@ already in the marts. Instead they're documented SQL queries, verified two ways 
 - `orders.net_sales` reconciles exactly with `SUM(sales.net_sales)` grouped by order — enforced
   by a singular test (`tests/assert_orders_net_sales_reconciles.sql`).
 - One known orphan: `order_id 5361303` appears in `sales` but has no matching row in `orders`
-  (2026-12-31, customer 1382673). Rather than silently dropping it or failing the whole build
-  on a single known row, a `relationships` generic test is configured at `warn` severity —
-  visible and documented, not blocking. See `models/staging/_staging.yml`.
+  (2026-12-31, customer 1382673) — present in the raw source file itself, not introduced by
+  this pipeline. Rather than silently dropping it or failing the *entire* build over one known
+  row, the `relationships` generic test on `stg_sales.order_id` is configured at `warn`
+  severity instead of `error`. This means: `dbt build` always surfaces it (visible in the run
+  output as `WARN 1`, never silently swallowed), but doesn't block every future build over an
+  unfixable row in someone else's source data. If a *new* orphan ever appeared, the warning
+  count would increase and be just as visible; if this one were fixed upstream, the warning
+  would disappear on its own — no dbt code change needed either way. See
+  `models/staging/_staging.yml`.
 
 ## Testing
 
