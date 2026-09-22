@@ -1,0 +1,18 @@
+# Confidential challenge brief — not for the public repo
+THCAnalyticsInsights/*.docx
+__MACOSX/
+
+# dbt
+target/
+dbt_packages/
+logs/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets
+*.json
+!package.json
+profiles.yml
