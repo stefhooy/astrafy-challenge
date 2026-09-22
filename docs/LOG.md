@@ -178,10 +178,16 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   the case where an older 2025 order correctly "ages out" of a later window. Documented the
   full worked example in `Exercises_Queries.md` (Exercise 5 section).
 
+- Rewrote `README.md` with real content, closing the documentation gap identified earlier:
+  layered architecture diagram, a "key architectural decisions" section with rationale for
+  each major choice (sources vs seeds, FLOAT64->NUMERIC, full-history segmentation,
+  RANGE BETWEEN over self-join, macro/var centralization, partitioning/clustering), data
+  quality notes, testing summary, repo layout, and condensed setup steps linking out to the
+  full guides (`SETUP.md`, `Exercises_Queries.md`, the design spec, `LOG.md`).
+
 ### Next up
 
-- Write up the final `README.md` with real, substantive content (not placeholders): setup
-  summary, all 6 exercise answers, and an explanation of the architectural choices -- this is
-  the one remaining gap against the brief's documentation requirement.
 - Final review pass before submission (re-read design spec, README, and all dbt docs for
   consistency; confirm `dbt build` is clean end-to-end one more time).
+- Reply to the recruiter's take-home email with the GitHub repo link, per the brief's
+  submission instructions.
