@@ -156,10 +156,32 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   Ex4/5/6 were built before Ex1/2/3, and a full breakdown of the RANGE BETWEEN segmentation
   logic.
 
+- Re-checked all 5 of the brief's "Technical Requirements" against the repo explicitly (user
+  prompted this check): architecture, code quality/reusability, data quality, performance, and
+  documentation. Four were already solid; documentation had a real gap -- Ex4/5/6 weren't
+  written up in `Exercises_Queries.md` (only Ex1-3 were), and the main `README.md` still had
+  placeholder text rather than the "insightful... explaining your architectural choices" the
+  brief asks for.
+- Extended `docs/Exercises_Queries.md` with Ex4/5/6: model previews, row-count/distribution
+  checks (2025: 1,088 orders + 2026: 2,573 = 3,661 total; 2026 segment split New 1,087 /
+  Returning 794 / VIP 692, summing to 2,573 exactly), and a concrete cross-year proof point --
+  customer 146283's 2025-12-02 order followed by a 2026-07-04 order correctly labeled
+  "Returning", direct evidence the segmentation window is using 2025 history to label 2026
+  orders. Fixed heading-hierarchy lint warnings along the way (single H1, proper nesting).
+
+- Cross-checked Ex4/5/6 against raw BigQuery SQL (same dual-verification approach as Ex1-3),
+  all matching the dbt results exactly. Along the way, built out the strongest single piece of
+  evidence in the submission: queried customer 146283's full 5-order history (Sep 2025 -> Nov
+  2026) directly against `int_orders_enriched`, and hand-verified every `order_segment` label
+  against the rolling 365-day window by hand -- New, then Returning x4, correctly including
+  the case where an order's window reaches back across the year boundary into 2025 data, and
+  the case where an older 2025 order correctly "ages out" of a later window. Documented the
+  full worked example in `Exercises_Queries.md` (Exercise 5 section).
+
 ### Next up
 
-- Write up the final `README.md`: replace the placeholder Setup and Exercise answers sections
-  with the real content (setup steps already in `docs/SETUP.md`, exercise answers already in
-  `docs/Exercises_Queries.md` -- just need to be linked/summarized from the main README).
+- Write up the final `README.md` with real, substantive content (not placeholders): setup
+  summary, all 6 exercise answers, and an explanation of the architectural choices -- this is
+  the one remaining gap against the brief's documentation requirement.
 - Final review pass before submission (re-read design spec, README, and all dbt docs for
   consistency; confirm `dbt build` is clean end-to-end one more time).
