@@ -232,11 +232,39 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   one real environment exists for a solo take-home; the CI target already demonstrates the
   pattern of environment-specific targets/datasets).
 
+- Added `GCP_SA_KEY`/`GCP_PROJECT_ID` secrets to the GitHub repo and pushed. **CI ran
+  successfully on the first try** -- `dbt build` (deps, all models, all 42 tests) passing on a
+  clean GitHub-hosted runner, not just locally. Independent confirmation the pipeline is
+  genuinely reproducible from the repo alone, not dependent on undocumented local state.
+- Note: the service account private key was briefly visible in full in the chat transcript
+  (pasted as an IDE selection while debugging CI). Recommended rotating it (generate a new key
+  for `dbt-runner`, delete the old one, update local `profiles.yml` + the GitHub secret) as a
+  precaution -- not yet done as of this log entry.
+
+- Generated `dbt docs` locally (`dbt docs generate` + `dbt docs serve`) to browse the model
+  lineage graph -- confirmed it renders correctly.
+- Added `.github/workflows/dbt_docs.yml`: generates the static dbt docs site
+  (`dbt docs generate --static`) and publishes it to GitHub Pages on every push, so the
+  lineage graph and full model/column documentation are viewable via a live link
+  (`stefhooy.github.io/astrafy-challenge`) with no local setup required on the viewer's end.
+  Reuses the same `GCP_SA_KEY`/`GCP_PROJECT_ID` secrets as the build workflow. Linked from the
+  README's new "Documentation site" section. Requires enabling GitHub Pages (Settings -> Pages
+  -> Source: GitHub Actions) manually, one time, in the repo settings -- not yet confirmed
+  live as of this log entry.
+- Updated the README's testing count (38 -> 42, reflecting the audit's new tests) and added a
+  short CI mention, both of which had gone stale after the self-audit fixes.
+- Discussed data observability (Elementary/Monte Carlo) as a broader "what should a good data
+  engineer know" question. Decision: explain the concept in interview prep notes rather than
+  implement it -- a new dependency this close to the interview adds risk for limited payoff at
+  this data's actual ~30k-row scale.
+
 ### Next up
 
+- Enable GitHub Pages (Settings -> Pages -> Source: GitHub Actions) so `dbt_docs.yml` can
+  actually publish, then confirm the live docs link works.
+- Rotate the `dbt-runner` service account key (see note above) and update the local
+  `profiles.yml` + GitHub secret to match.
 - Final review pass before submission (re-read design spec, README, and all dbt docs for
   consistency).
-- Add the `GCP_SA_KEY`/`GCP_PROJECT_ID` secrets to the GitHub repo so the new CI workflow
-  actually runs, and confirm it passes on GitHub's side (not just locally).
 - Reply to the recruiter's take-home email with the GitHub repo link, per the brief's
   submission instructions (Part 1 only -- no PDF/Data Studio link expected).

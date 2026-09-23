@@ -112,15 +112,36 @@ already in the marts. Instead they're documented SQL queries, verified two ways 
   would disappear on its own — no dbt code change needed either way. See
   `models/staging/_staging.yml`.
 
+## Documentation site
+
+Live, browsable dbt docs (model/column descriptions, compiled SQL, and an interactive lineage
+graph of the full staging → intermediate → marts DAG) are published at:
+
+**[stefhooy.github.io/astrafy-challenge](https://stefhooy.github.io/astrafy-challenge/)**
+
+Auto-generated and deployed via `.github/workflows/dbt_docs.yml` on every push. To generate and
+browse it locally instead:
+
+```bash
+cd dbt
+dbt docs generate
+dbt docs serve
+```
+
 ## Testing
 
-38 dbt tests across staging/intermediate/marts, all passing against real BigQuery data:
-generic tests (`unique`, `not_null`, `relationships`, `accepted_values` on the segmentation
-labels) plus the singular net_sales reconciliation test described above.
+42 dbt tests across staging/intermediate/marts, all passing against real BigQuery data:
+generic tests (`unique`, `not_null`, `relationships` in both directions between orders and
+sales, `accepted_values` on the segmentation labels, `dbt_utils.expression_is_true` asserting
+non-negative `net_sales`/`qty`) plus the singular net_sales reconciliation test described
+above.
 
 ```bash
 dbt build   # runs all models + all tests, in dependency order
 ```
+
+Also runs automatically in CI (`.github/workflows/dbt_build.yml`) on every push, against an
+isolated `dbt_ci` target/dataset — see the repo's **Actions** tab.
 
 ## Repo layout
 
