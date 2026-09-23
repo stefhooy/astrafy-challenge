@@ -1,13 +1,13 @@
-# Astrafy Take-Home Challenge — Part 1: Coding Challenge
+# Astrafy Take-Home Challenge, Part 1: Coding Challenge
 
 dbt + BigQuery pipeline for the Astrafy analytics engineering take-home challenge (Part 1 only,
-per recruiter guidance — Parts 2 and 3 of the original brief are out of scope for this repo).
+per recruiter guidance: Parts 2 and 3 of the original brief are out of scope for this repo).
 
 ## What this is
 
-Two source extracts — `orders` (3,661 rows, 1 row per order) and `sales` (28,361 rows, 1 row
-per order/product line), covering 2025-07-09 through 2026-12-31 — transformed through a
-staging → intermediate → marts dbt pipeline into BigQuery, answering the 6 exercises below.
+Two source extracts: `orders` (3,661 rows, 1 row per order) and `sales` (28,361 rows, 1 row
+per order/product line), covering 2025-07-09 through 2026-12-31. These are transformed through
+a staging → intermediate → marts dbt pipeline into BigQuery, answering the 6 exercises below.
 
 | Exercise | Deliverable | Result |
 | --- | --- | --- |
@@ -18,16 +18,16 @@ staging → intermediate → marts dbt pipeline into BigQuery, answering the 6 e
 | Ex5: order segmentation logic (New/Returning/VIP) | Rolling-12mo logic in `int_orders_enriched` | see below |
 | Ex6: 2026 orders table + `order_segmentation` | `fct_orders_segmented` mart | 2,573 rows |
 
-Ex1–3 are answered as documented SQL queries against the marts rather than as separate
-persisted models — see [Why Ex1-3 aren't separate models](#why-ex1-3-arent-separate-models)
+Ex1-3 are answered as documented SQL queries against the marts rather than as separate
+persisted models. See [Why Ex1-3 aren't separate models](#why-ex1-3-arent-separate-models)
 below. Full queries, results, and a hand-verified worked example for the segmentation logic are
 in [`docs/Exercises_Queries.md`](docs/Exercises_Queries.md).
 
 ## Architecture
 
 ```text
-raw.orders, raw.sales        <- loaded by scripts/load_raw_data.py (plain Python, not dbt),
-        │                        an exact copy of the two source Excel files
+raw.orders, raw.sales        <- an exact copy of the two source Excel files, loaded by
+        │                        scripts/load_raw_data.py (plain Python, not dbt)
         │
 stg_orders, stg_sales        <- VIEWS. Rename/cast only: resolves the source files'
         │                        inconsistent column naming (customers_id/customer_id,
@@ -51,7 +51,7 @@ fct_orders_segmented         <- TABLE. int_orders_enriched filtered to
                                  then customer_id.
 ```
 
-Each layer is a dbt model calling `{{ ref(...) }}` on the previous one — dbt resolves the build
+Each layer is a dbt model calling `{{ ref(...) }}` on the previous one: dbt resolves the build
 order from those references (a DAG), nothing is manually sequenced.
 
 ## Key architectural decisions
@@ -61,16 +61,16 @@ order from those references (a DAG), nothing is manually sequenced.
   via a one-off script into `raw.*` tables and reading them as sources mirrors how data
   actually lands from a real ingestion tool in production.
 - **`FLOAT64` in raw, cast to `NUMERIC` in staging.** Raw tables mirror the source system
-  exactly — they're not the place to clean data. Type normalization (money-safe precision)
+  exactly. They're not the place to clean data. Type normalization (money-safe precision)
   happens once, in staging, the single point everything downstream reads clean data from.
   (Also a practical workaround: `google-cloud-bigquery`'s `load_table_from_dataframe` can't
   convert a pandas `float64` column straight to `NUMERIC`.)
 - **Segmentation computed over full history, not just 2026**, in `int_orders_enriched`, then
   filtered down to the exercise's target year only in the final mart. Otherwise a January 2026
   order would look like a brand-new customer's first order even if they'd ordered several times
-  in late 2025 — the trailing-12-month window has to be able to see across the year boundary.
+  in late 2025, because the trailing-12-month window has to be able to see across the year boundary.
 - **BigQuery-idiomatic rolling window, not a self-join.** BigQuery's `RANGE BETWEEN` window
-  frame requires a numeric `ORDER BY` expression — `DATE` isn't accepted directly. The pattern
+  frame requires a numeric `ORDER BY` expression: `DATE` isn't accepted directly. The pattern
   used is `order by UNIX_DATE(order_date) range between 365 preceding and 1 preceding`,
   partitioned by `customer_id`: a single windowed pass per customer, no join, no row explosion.
   Matters at the "billions of rows" scale the brief asks us to design for. Full walkthrough,
@@ -80,17 +80,17 @@ order from those references (a DAG), nothing is manually sequenced.
   `dbt/macros/segment_from_order_count.sql` reads `returning_order_threshold` /
   `vip_order_threshold` from `dbt/dbt_project.yml`. Year boundaries (`orders_mart_years`,
   `segmentation_mart_year`) are
-  vars too — re-pointing either mart at a different period is a one-line change, not a
+  vars too: re-pointing either mart at a different period is a one-line change, not a
   code edit.
 - **Partitioning and clustering on both marts**: partitioned by `order_date` (daily), clustered
   by `customer_id` (`fct_orders`) or `order_segmentation` then `customer_id`
-  (`fct_orders_segmented`, since segment-filtered queries are the expected access pattern) —
+  (`fct_orders_segmented`, since segment-filtered queries are the expected access pattern),
   designed for scan-cost efficiency at scale, even though the actual data here is ~30k rows.
 
 ### Why Ex1-3 aren't separate models
 
-Ex1–3 ("how many orders in 2026", "orders per month", "avg products per order per month") have
-no independent existence as deliverables — they're aggregate questions answerable with a
+Ex1-3 ("how many orders in 2026", "orders per month", "avg products per order per month") have
+no independent existence as deliverables: they're aggregate questions answerable with a
 `COUNT(*)`/`AVG()` against the `fct_orders` table Ex4 already produces. Building a dedicated,
 persisted dbt model per ad-hoc question would be a non-reusable one-off that duplicates logic
 already in the marts. Instead they're documented SQL queries, verified two ways (via
@@ -100,18 +100,23 @@ already in the marts. Instead they're documented SQL queries, verified two ways 
 ## Data quality notes
 
 - No nulls in either source file; no duplicate `order_id`s in `orders`.
-- `orders.net_sales` reconciles exactly with `SUM(sales.net_sales)` grouped by order — enforced
+- `orders.net_sales` reconciles exactly with `SUM(sales.net_sales)` grouped by order, enforced
   by a singular test (`dbt/tests/assert_orders_net_sales_reconciles.sql`).
 - One known orphan: `order_id 5361303` appears in `sales` but has no matching row in `orders`
-  (2026-12-31, customer 1382673) — present in the raw source file itself, not introduced by
+  (2026-12-31, customer 1382673), present in the raw source file itself, not introduced by
   this pipeline. Rather than silently dropping it or failing the *entire* build over one known
   row, the `relationships` generic test on `stg_sales.order_id` is configured at `warn`
   severity instead of `error`. This means: `dbt build` always surfaces it (visible in the run
   output as `WARN 1`, never silently swallowed), but doesn't block every future build over an
   unfixable row in someone else's source data. If a *new* orphan ever appeared, the warning
   count would increase and be just as visible; if this one were fixed upstream, the warning
-  would disappear on its own — no dbt code change needed either way. See
+  would disappear on its own. No dbt code change needed either way. See
   `dbt/models/staging/_staging.yml`.
+- Known left-censoring limitation in the segmentation (Ex5/Ex6): the dataset only starts
+  2025-07-09, so orders placed early in that window can be undercounted as "New" relative to a
+  customer's true, unobserved, pre-extract order history. This is a data-boundary limitation
+  inherent to the extract, not a pipeline bug, and it self-corrects over time as more history
+  accumulates within the dataset.
 
 ## Documentation site
 
@@ -142,27 +147,27 @@ dbt build   # runs all models + all tests, in dependency order
 ```
 
 Also runs automatically in CI (`.github/workflows/dbt_build.yml`) on every push, against an
-isolated `dbt_ci` target/dataset — see the repo's **Actions** tab.
+isolated `dbt_ci` target/dataset. See the repo's **Actions** tab.
 
 ## Repo layout
 
 ```text
-data/                         -- raw source xlsx files
-scripts/load_raw_data.py      -- one-off loader: xlsx -> raw BigQuery tables
+data/                         : raw source xlsx files
+scripts/load_raw_data.py      : one-off loader: xlsx -> raw BigQuery tables
 dbt/
-  dbt_project.yml             -- vars for year boundaries + segmentation thresholds
-  packages.yml                -- dbt_utils
+  dbt_project.yml             : vars for year boundaries + segmentation thresholds
+  packages.yml                : dbt_utils
   models/
-    staging/                  -- stg_orders, stg_sales + sources.yml
-    intermediate/              -- int_orders_products_agg, int_orders_enriched
-    marts/                     -- fct_orders (Ex4), fct_orders_segmented (Ex6)
+    staging/                  : stg_orders, stg_sales + sources.yml
+    intermediate/              : int_orders_products_agg, int_orders_enriched
+    marts/                     : fct_orders (Ex4), fct_orders_segmented (Ex6)
   macros/segment_from_order_count.sql
   tests/assert_orders_net_sales_reconciles.sql
 docs/
-  superpowers/specs/2026-09-22-dbt-bigquery-pipeline-design.md   -- full design rationale
-  SETUP.md                     -- BigQuery + dbt environment setup, step by step
-  Exercises_Queries.md         -- all 6 exercise answers: queries, results, worked examples
-  LOG.md                       -- running build log
+  design/2026-09-22-dbt-bigquery-pipeline-design.md   : full design rationale
+  SETUP.md                     : BigQuery + dbt environment setup, step by step
+  Exercises_Queries.md         : all 6 exercise answers: queries, results, worked examples
+  LOG.md                       : running build log
 ```
 
 ## Setup
@@ -193,10 +198,10 @@ in [`docs/SETUP.md`](docs/SETUP.md). Short version:
 
 ## Further reading
 
-- [Design spec](docs/superpowers/specs/2026-09-22-dbt-bigquery-pipeline-design.md) — full
+- [Design spec](docs/design/2026-09-22-dbt-bigquery-pipeline-design.md): full
   architecture rationale, written before implementation began.
-- [Exercises_Queries.md](docs/Exercises_Queries.md) — every exercise's answer, queries (dbt +
+- [Exercises_Queries.md](docs/Exercises_Queries.md): every exercise's answer, queries (dbt +
   raw BigQuery SQL), and a hand-verified worked example of the segmentation logic against a
   real customer's order history.
-- [LOG.md](docs/LOG.md) — running log of the actual build process and decisions made along
+- [LOG.md](docs/LOG.md): running log of the actual build process and decisions made along
   the way.

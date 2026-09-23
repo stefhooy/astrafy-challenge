@@ -25,7 +25,7 @@ orders_with_products as (
 
 -- Count of each customer's orders placed strictly within the 365 days before the current
 -- order. BigQuery's RANGE frame requires a numeric ORDER BY expression, so we order by
--- unix_date(order_date) rather than the DATE itself -- this avoids a self-join and lets
+-- unix_date(order_date) rather than the DATE itself: this avoids a self-join and lets
 -- BigQuery evaluate the whole thing as a single windowed pass, which matters at scale.
 orders_with_prior_count as (
     select

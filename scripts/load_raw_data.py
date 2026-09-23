@@ -1,7 +1,7 @@
 """One-off loader: reads the two challenge Excel extracts and loads them into BigQuery as
 raw tables, which dbt sources then build on top of.
 
-Not a dbt seed on purpose — see docs/superpowers/specs/2026-09-22-dbt-bigquery-pipeline-design.md
+Not a dbt seed on purpose: see docs/design/2026-09-22-dbt-bigquery-pipeline-design.md
 for the rationale (seeds are for static reference data, not transactional fact data).
 
 Usage:
@@ -26,7 +26,7 @@ DATA_DIR = REPO_ROOT / "data"
 
 # net_sales is FLOAT64 here, matching the source data as-is: raw tables mirror the source
 # system exactly, they don't clean it. Type normalization (cast to NUMERIC for money-safe
-# precision) happens once, downstream, in the staging layer -- the single place types get
+# precision) happens once, downstream, in the staging layer: the single place types get
 # cleaned before anything else consumes them.
 ORDERS_SCHEMA = [
     bigquery.SchemaField("date_date", "DATE"),

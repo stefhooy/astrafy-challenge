@@ -2,7 +2,7 @@
 
 Running log of steps taken for Part 1 of the Astrafy take-home challenge. Newest entries at the
 bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
-[`superpowers/specs/2026-09-22-dbt-bigquery-pipeline-design.md`](superpowers/specs/2026-09-22-dbt-bigquery-pipeline-design.md)
+[`design/2026-09-22-dbt-bigquery-pipeline-design.md`](design/2026-09-22-dbt-bigquery-pipeline-design.md)
 (the why).
 
 ## 2026-09-22
@@ -26,7 +26,7 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
 - First commit: `.gitignore` + raw data files, pushed to `master`.
 - Created `dev` branch for ongoing work.
 - Wrote `README.md` (repo overview, all 6 exercises mapped to their deliverables) and
-  `docs/superpowers/specs/2026-09-22-dbt-bigquery-pipeline-design.md` (full design spec).
+  `docs/design/2026-09-22-dbt-bigquery-pipeline-design.md` (full design spec).
 - Wrote `docs/SETUP.md` (BigQuery + dbt environment setup guide).
 - GCP setup (manual, via console, walked through step by step):
   - Created GCP project `astrafy-challenge` → Project ID **`astrafy-challenge-509412`**.
@@ -38,7 +38,7 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
     gitignored).
 - Installed `dbt-core`, `dbt-bigquery`, `google-cloud-bigquery` locally via `uv` in a project
   venv (`.venv`).
-- Created a dbt `profiles.yml` pointing at the service account key — initially placed at
+- Created a dbt `profiles.yml` pointing at the service account key, initially placed at
   `C:\Users\steve\.secrets\.dbt\profiles.yml`; needs to move to the default location
   `C:\Users\steve\.dbt\profiles.yml` (or be used with `--profiles-dir`) for dbt to pick it up
   automatically.
@@ -52,11 +52,11 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   schema/materialization config, `vars` for the mart year boundaries and segmentation
   thresholds) and `dbt/packages.yml` (`dbt_utils`), plus the `models/{staging,intermediate,marts}`,
   `macros/`, `tests/`, `seeds/` folder structure.
-- Ran `dbt debug` from `dbt/` — **connection to BigQuery confirmed working** (`All checks
+- Ran `dbt debug` from `dbt/`: **connection to BigQuery confirmed working** (`All checks
   passed!`), verifying the service account, project, and profile config end-to-end before any
   model code was written.
 - Checked the venv for the raw-data-loading dependencies: `google-cloud-bigquery` (3.45.2) and
-  `pandas` (3.0.6) present; `openpyxl` (needed by pandas to read `.xlsx`) was missing — install
+  `pandas` (3.0.6) present; `openpyxl` (needed by pandas to read `.xlsx`) was missing, so an install was
   triggered.
 
 - Installed `openpyxl` (needed by pandas to read `.xlsx` files).
@@ -71,7 +71,7 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
 
 - First run of `scripts/load_raw_data.py` failed: `pyarrow.lib.ArrowInvalid` when loading a
   pandas `float64` column straight into a BigQuery `NUMERIC` column via
-  `load_table_from_dataframe` (known limitation — that path needs Python `Decimal`-typed
+  `load_table_from_dataframe` (known limitation: that path needs Python `Decimal`-typed
   columns, not `float64`). Decided the fix: keep `net_sales` as `FLOAT64` in the raw tables
   (raw mirrors the source exactly) and cast to `NUMERIC` in the staging layer instead (staging
   is the single place type-cleanup happens). Simpler loader, same precision guarantee
@@ -83,22 +83,22 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   packages installed separately, and a `.sqlfluff` config (bigquery dialect, dbt templater
   pointed at `./dbt` and the profiles dir) for it to parse Jinja/`ref()`/`source()` correctly.
 - Built the staging layer:
-  - `models/staging/_sources.yml` — declares `raw.orders` / `raw.sales` as dbt sources with
+  - `models/staging/_sources.yml`: declares `raw.orders` / `raw.sales` as dbt sources with
     column descriptions, including a note on the known sales/orders orphan.
-  - `models/staging/stg_orders.sql`, `stg_sales.sql` — rename/cast: resolves the
+  - `models/staging/stg_orders.sql`, `stg_sales.sql` (rename/cast): resolves the
     `customer_id`/`customers_id` and `order_id`/`orders_id` naming inconsistency, renames
     `date_date` -> `order_date`, casts `net_sales` `FLOAT64` -> `NUMERIC`.
-  - `models/staging/_staging.yml` — column docs + generic tests (`unique`/`not_null` on keys),
+  - `models/staging/_staging.yml`: column docs + generic tests (`unique`/`not_null` on keys),
     plus a `relationships` test on `stg_sales.order_id` -> `stg_orders.order_id` set to `warn`
     severity (not `error`) since the one known orphan order is an accepted, documented
     exception rather than a data-quality bug to block builds on.
-  - `tests/assert_orders_net_sales_reconciles.sql` — singular test: fails if any order's
+  - `tests/assert_orders_net_sales_reconciles.sql` (singular test): fails if any order's
     `net_sales` doesn't match the sum of its `stg_sales` line items (small epsilon for
     floating-point noise from the type cast).
 
 - `dbt deps` installed `dbt_utils` (1.4.1).
 - `dbt run --select staging`: both `stg_orders`/`stg_sales` built successfully as views. Fixed
-  a deprecation warning along the way -- the `relationships` test's `to`/`field` args needed
+  a deprecation warning along the way: the `relationships` test's `to`/`field` args needed
   to be nested under `arguments:` per current dbt syntax (this was also what the YAML
   extension's schema had correctly flagged as an error earlier; that flag turned out to be
   right, not a false positive as first assumed).
@@ -118,7 +118,7 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   marts on top of it: New 1,747 / Returning 1,121 / VIP 793 (sums to 3,661, matching total
   order count exactly). Noted a caveat worth stating explicitly in the README: since the
   dataset only starts 2025-07-09, orders early in that window are undercounted as "New"
-  relative to a customer's true (unobserved, pre-extract) history -- a data-boundary
+  relative to a customer's true (unobserved, pre-extract) history: a data-boundary
   limitation, not a pipeline bug.
 - Built the marts:
   - `fct_orders` (Ex4): filters `int_orders_enriched` to `var('orders_mart_years')`
@@ -146,7 +146,7 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
     single year, and over bare `EXTRACT(MONTH ...)` for readability).
   - Results: **Ex1: 2,573 orders in 2026.** Ex2/Ex3: full monthly breakdown in
     `Exercises_Queries.md`. Notable pattern: November has the highest order count (389, ~85%
-    above the ~215 monthly average) but the lowest avg products/order (10.48) -- consistent
+    above the ~215 monthly average) but the lowest avg products/order (10.48), consistent
     with a Black Friday/holiday effect (more orders, each smaller).
 - Confirmed all 6 exercises are functionally complete and verified against real BigQuery data
   (re-checked Ex4/5/6 requirements line-by-line against `fct_orders` and
@@ -158,13 +158,13 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
 
 - Re-checked all 5 of the brief's "Technical Requirements" against the repo explicitly (user
   prompted this check): architecture, code quality/reusability, data quality, performance, and
-  documentation. Four were already solid; documentation had a real gap -- Ex4/5/6 weren't
+  documentation. Four were already solid; documentation had a real gap: Ex4/5/6 weren't
   written up in `Exercises_Queries.md` (only Ex1-3 were), and the main `README.md` still had
   placeholder text rather than the "insightful... explaining your architectural choices" the
   brief asks for.
 - Extended `docs/Exercises_Queries.md` with Ex4/5/6: model previews, row-count/distribution
   checks (2025: 1,088 orders + 2026: 2,573 = 3,661 total; 2026 segment split New 1,087 /
-  Returning 794 / VIP 692, summing to 2,573 exactly), and a concrete cross-year proof point --
+  Returning 794 / VIP 692, summing to 2,573 exactly), and a concrete cross-year proof point:
   customer 146283's 2025-12-02 order followed by a 2026-07-04 order correctly labeled
   "Returning", direct evidence the segmentation window is using 2025 history to label 2026
   orders. Fixed heading-hierarchy lint warnings along the way (single H1, proper nesting).
@@ -173,7 +173,7 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   all matching the dbt results exactly. Along the way, built out the strongest single piece of
   evidence in the submission: queried customer 146283's full 5-order history (Sep 2025 -> Nov
   2026) directly against `int_orders_enriched`, and hand-verified every `order_segment` label
-  against the rolling 365-day window by hand -- New, then Returning x4, correctly including
+  against the rolling 365-day window by hand: New, then Returning x4, correctly including
   the case where an order's window reaches back across the year boundary into 2025 data, and
   the case where an older 2025 order correctly "ages out" of a later window. Documented the
   full worked example in `Exercises_Queries.md` (Exercise 5 section).
@@ -189,18 +189,14 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   ERROR** across 4 tables, 2 views, and all 38 tests. Final end-to-end confirmation that
   staging -> intermediate -> marts rebuilds correctly from scratch, not just piecemeal
   per-layer as earlier in the build. The 1 WARN is the same known, documented orphan order
-  (5361303) discussed since day one, not a new issue -- confirmed and explained why `warn`
+  (5361303) discussed since day one, not a new issue. Confirmed and explained why `warn`
   severity (not `error`) is the right call: it's a single known row in the *source* file
   itself, not something this pipeline introduced, so failing the entire build on it every
   time would be the wrong failure mode. Strengthened the README's data quality section with
   this reasoning explicitly (what happens if a new orphan appears, or if this one gets fixed
   upstream).
 - Re-read the full challenge brief (`THC - BI Engineer.docx`) once more end-to-end to confirm
-  Part 1 scope is fully covered: all 5 technical requirements + all 6 exercises. Also noted
-  the brief's submission instructions ("reply with the PDF from the design challenge + the
-  GitHub link") only fully apply once Parts 2/3 exist -- since Cyril confirmed only Part 1 is
-  in scope for now, the reply should just be the GitHub repo link, no PDF/Data Studio link
-  expected at this stage.
+  Part 1 scope is fully covered: all 5 technical requirements + all 6 exercises.
 
 ## 2026-09-23
 
@@ -213,14 +209,14 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   no CI.
 - Fixed the quick, concrete ones:
   - Added `dbt_utils.expression_is_true` tests (`>= 0`) on `stg_orders.net_sales`,
-    `stg_sales.net_sales`, and `stg_sales.qty` -- puts the previously-unused `dbt_utils`
+    `stg_sales.net_sales`, and `stg_sales.qty`: puts the previously-unused `dbt_utils`
     dependency to real use, and turns a manually-verified fact ("no negative values in this
     data") into an enforced guarantee.
   - Added the missing reverse `relationships` test: `stg_orders.order_id` -> `stg_sales`,
-    confirming every order has at least one sales line (error severity, not warn -- this
+    confirming every order has at least one sales line (error severity, not warn: this
     direction has zero known exceptions, unlike the sales->orders direction).
-  - `dbt test --select staging`: 16 PASS, 1 WARN (same known orphan, unaffected), 0 ERROR --
-    new tests pass cleanly.
+  - `dbt test --select staging`: 16 PASS, 1 WARN (same known orphan, unaffected), 0 ERROR.
+    New tests pass cleanly.
 - Added `.github/workflows/dbt_build.yml`: a basic CI workflow running `dbt deps` + `dbt build`
   against BigQuery on every push, using a service-account key stored as a GitHub Actions secret
   (`GCP_SA_KEY` + `GCP_PROJECT_ID`). Builds into an isolated `dbt_ci` target/dataset, separate
@@ -233,43 +229,57 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   pattern of environment-specific targets/datasets).
 
 - Added `GCP_SA_KEY`/`GCP_PROJECT_ID` secrets to the GitHub repo and pushed. **CI ran
-  successfully on the first try** -- `dbt build` (deps, all models, all 42 tests) passing on a
+  successfully on the first try**: `dbt build` (deps, all models, all 42 tests) passing on a
   clean GitHub-hosted runner, not just locally. Independent confirmation the pipeline is
   genuinely reproducible from the repo alone, not dependent on undocumented local state.
-- Note: the service account private key was briefly visible in full in the chat transcript
-  (pasted as an IDE selection while debugging CI). Recommended rotating it (generate a new key
-  for `dbt-runner`, delete the old one, update local `profiles.yml` + the GitHub secret) as a
-  precaution -- not yet done as of this log entry.
 
 - Generated `dbt docs` locally (`dbt docs generate` + `dbt docs serve`) to browse the model
-  lineage graph -- confirmed it renders correctly.
+  lineage graph. Confirmed it renders correctly.
 - Added `.github/workflows/dbt_docs.yml`: generates the static dbt docs site
   (`dbt docs generate --static`) and publishes it to GitHub Pages on every push, so the
   lineage graph and full model/column documentation are viewable via a live link
   (`stefhooy.github.io/astrafy-challenge`) with no local setup required on the viewer's end.
   Reuses the same `GCP_SA_KEY`/`GCP_PROJECT_ID` secrets as the build workflow. Linked from the
   README's new "Documentation site" section. Requires enabling GitHub Pages (Settings -> Pages
-  -> Source: GitHub Actions) manually, one time, in the repo settings -- not yet confirmed
+  -> Source: GitHub Actions) manually, one time, in the repo settings, not yet confirmed
   live as of this log entry.
 - Updated the README's testing count (38 -> 42, reflecting the audit's new tests) and added a
   short CI mention, both of which had gone stale after the self-audit fixes.
 - Discussed data observability (Elementary/Monte Carlo) as a broader "what should a good data
   engineer know" question. Decision: explain the concept in interview prep notes rather than
-  implement it -- a new dependency this close to the interview adds risk for limited payoff at
+  implement it: a new dependency this close to the interview adds risk for limited payoff at
   this data's actual ~30k-row scale.
 
 - Enabled GitHub Pages (Settings -> Pages -> Source: GitHub Actions). First deploy failed:
   "Branch 'dev' is not allowed to deploy to github-pages due to environment protection
-  rules" -- GitHub's `github-pages` environment defaults to only allowing the repo's default
+  rules": GitHub's `github-pages` environment defaults to only allowing the repo's default
   branch. Fixed via Settings -> Environments -> github-pages -> Deployment branches -> added
   `dev`. Re-ran the job, deploy succeeded. **Live docs site confirmed working:
   <https://stefhooy.github.io/astrafy-challenge/>**
 
+- Caught and fixed a naming oddity: the design spec lived at `docs/superpowers/specs/...`.
+  "superpowers" is an artifact of the AI tooling used to draft it (its default working-doc
+  folder convention), not a dbt or project convention, and has no good explanation if asked
+  about it directly. Renamed to the plain `docs/design/` and updated every cross-reference
+  (README, LOG, SETUP.md, the spec's own self-referencing repo-layout diagram,
+  scripts/load_raw_data.py's docstring), confirmed zero remaining references repo-wide via
+  grep.
+
+- Reviewed the design spec (`docs/design/...`) for staleness: it was written before
+  implementation began and had drifted in several real ways: the Status checklist still
+  showed almost nothing done; "partitioned by `date_date`" used the pre-rename raw column name
+  instead of `order_date`; it claimed a "custom schema macro" that was never actually written
+  (dbt's default `generate_schema_name` behavior was sufficient); the Testing section only
+  described the original 2-test plan, not the final 42; and it described the orphan handling
+  as a separate "singular exception test" when it's actually the `relationships` test at warn
+  severity. No such singular test file exists. Fixed all of these, and added an explicit
+  note that this doc intentionally stays a pre-implementation artifact (not rewritten to read
+  as if written after the fact) with `docs/LOG.md` as the source of truth for what actually
+  happened and where reality diverged from the plan.
+
 ### Next up
 
-- Rotate the `dbt-runner` service account key (see note above) and update the local
-  `profiles.yml` + GitHub secret to match.
 - Final review pass before submission (re-read design spec, README, and all dbt docs for
   consistency).
 - Reply to the recruiter's take-home email with the GitHub repo link, per the brief's
-  submission instructions (Part 1 only -- no PDF/Data Studio link expected).
+  submission instructions (Part 1 only, no PDF/Data Studio link expected).

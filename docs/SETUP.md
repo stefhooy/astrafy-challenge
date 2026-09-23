@@ -1,8 +1,8 @@
-# Environment Setup — BigQuery + dbt
+# Environment Setup: BigQuery + dbt
 
 Do this once, before any dbt model or the raw-data loader script is run. Matches the tooling
 section of
-[`docs/superpowers/specs/2026-09-22-dbt-bigquery-pipeline-design.md`](superpowers/specs/2026-09-22-dbt-bigquery-pipeline-design.md):
+[`docs/design/2026-09-22-dbt-bigquery-pipeline-design.md`](design/2026-09-22-dbt-bigquery-pipeline-design.md):
 service-account key auth (no `gcloud`/`bq` CLI required), dbt-core + dbt-bigquery in a
 project-local virtual environment.
 
@@ -11,12 +11,12 @@ project-local virtual environment.
 1. Go to https://console.cloud.google.com/ and sign in with the Google account you want to use.
 2. Create a new project (or pick an existing one you're happy to use for this):
    top navbar → project selector → **New Project** → name it e.g. `astrafy-challenge` → Create.
-3. Note the **Project ID** (not the display name — the unique id, e.g. `astrafy-challenge-123456`).
+3. Note the **Project ID** (not the display name: the unique id, e.g. `astrafy-challenge-123456`).
    You'll need it for `profiles.yml`.
 
    **Project ID for this challenge: `astrafy-challenge-509412`**
 4. BigQuery's free tier (1 TB queried/month, 10 GB storage) covers this project's data volume
-   (~30k rows) with room to spare — no billing account is required to stay within it, though
+   (~30k rows) with room to spare. No billing account is required to stay within it, though
    Google may still ask you to attach one to unlock the project.
 
 ## 2. Enable the BigQuery API
@@ -34,7 +34,7 @@ projects).
 4. Finish creation, then open the service account → **Keys** tab → **Add Key** → **Create new
    key** → type **JSON** → Create. This downloads a `.json` key file.
 5. Move that file somewhere local and stable, e.g.
-   `C:\Users\steve\.secrets\astrafy-challenge-key.json` — **not** inside the repo folder. The
+   `C:\Users\steve\.secrets\astrafy-challenge-key.json`, **not** inside the repo folder. The
    repo's `.gitignore` already blocks `*.json`, but keeping secrets outside the repo entirely is
    safer than relying on gitignore.
 
@@ -68,7 +68,7 @@ astrafy_challenge:
       dataset: dbt_dev
       keyfile: C:\Users\steve\.secrets\astrafy-challenge-key.json
       threads: 4
-      location: EU   # or US — match wherever you create the BigQuery datasets
+      location: EU   # or US, match wherever you create the BigQuery datasets
 ```
 
 `astrafy_challenge` here must match the `profile:` value in `dbt/dbt_project.yml` once the
@@ -90,4 +90,4 @@ write a single model.
 2. Run `scripts/load_raw_data.py` to load the two Excel files into `raw.orders` / `raw.sales`
    in BigQuery.
 3. Build staging → intermediate → marts models, tests, and docs per the design spec.
-4. Run `dbt build`, verify Exercises 1–3 numbers, write them into the main `README.md`.
+4. Run `dbt build`, verify Exercises 1-3 numbers, write them into the main `README.md`.

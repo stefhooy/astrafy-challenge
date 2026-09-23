@@ -50,9 +50,10 @@ models:
           - not_null
       - name: order_segment
         description: >
-          New (0 prior orders in trailing 12mo), Returning (1-3), or VIP (4+). See
-          macros/segment_from_order_count.sql and the returning_order_threshold /
-          vip_order_threshold vars in dbt_project.yml.
+          New (0 prior orders in the trailing 12 months, i.e. the customer's 1st order),
+          Returning (1-3 prior orders, i.e. the 2nd-4th order), or VIP (4+ prior orders, i.e.
+          the 5th+ order). See macros/segment_from_order_count.sql and the
+          returning_order_threshold / vip_order_threshold vars in dbt_project.yml.
         data_tests:
           - not_null
           - accepted_values:

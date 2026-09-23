@@ -10,7 +10,7 @@ models:
       - name: order_id
         description: >
           Unique order identifier. Every order is expected to have at least one matching
-          sales line (verified: true for 100% of orders in the current data) -- checked
+          sales line (verified true for 100% of orders in the current data), checked
           explicitly here rather than just assumed, so a future order with zero sales lines
           would be caught.
         data_tests:
@@ -29,7 +29,7 @@ models:
         data_tests:
           - not_null
       - name: net_sales
-        description: Net sales amount for the order. Expected non-negative -- verified true
+        description: Net sales amount for the order. Expected non-negative, verified true
           for all current data, enforced going forward by the expression_is_true test below.
         data_tests:
           - not_null

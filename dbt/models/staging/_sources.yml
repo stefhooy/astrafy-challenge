@@ -24,8 +24,8 @@ sources:
       - name: sales
         description: >
           1 row per order/product line. Source: sales_recrutement.xlsx. One order
-          (order_id 5361303) appears here without a matching row in `orders` — see
-          stg_sales.yml for how this is tested and documented.
+          (order_id 5361303) appears here without a matching row in `orders`: see
+          _staging.yml for how this is tested and documented.
         columns:
           - name: date_date
             description: Date the order was placed.
