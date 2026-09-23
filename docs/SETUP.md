@@ -40,17 +40,31 @@ projects).
 
 ## 4. Python environment + dbt
 
-From the repo root:
+Uses [`uv`](https://docs.astral.sh/uv/) (a fast Python package/environment manager) rather
+than plain `pip`/`venv`: it resolves and installs packages significantly faster (a Rust-based
+resolver instead of `pip`'s pure-Python one), which matters here since `dbt-core` pulls in a
+fairly large dependency tree. `uv venv` creates the virtual environment, and `uv pip install`
+is a drop-in replacement for `pip install` that reads/writes the same environment, so
+everything downstream (activating the venv, running `dbt`, etc.) works exactly as it would
+with plain `pip`. From the repo root:
 
 ```bash
 cd "/c/Users/steve/OneDrive/Astrafy/astrafy-challenge"
-python -m venv .venv
+uv venv
 source .venv/Scripts/activate   # Git Bash on Windows
-pip install --upgrade pip
-pip install dbt-core dbt-bigquery google-cloud-bigquery
+uv pip install dbt-core dbt-bigquery google-cloud-bigquery
 ```
 
 (PowerShell equivalent for activation: `.venv\Scripts\Activate.ps1`)
+
+No `uv`? The plain `pip`/`venv` equivalent works the same way:
+
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+pip install --upgrade pip
+pip install dbt-core dbt-bigquery google-cloud-bigquery
+```
 
 ## 5. dbt connection profile
 

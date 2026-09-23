@@ -56,36 +56,65 @@ order from those references (a DAG), nothing is manually sequenced.
 
 ## Key architectural decisions
 
-- **Raw BigQuery tables + dbt sources, not dbt seeds.** dbt's own guidance is that seeds are
-  for small, static reference data, not transactional fact data, even at small volume. Loading
-  via a one-off script into `raw.*` tables and reading them as sources mirrors how data
-  actually lands from a real ingestion tool in production.
-- **`FLOAT64` in raw, cast to `NUMERIC` in staging.** Raw tables mirror the source system
-  exactly. They're not the place to clean data. Type normalization (money-safe precision)
-  happens once, in staging, the single point everything downstream reads clean data from.
-  (Also a practical workaround: `google-cloud-bigquery`'s `load_table_from_dataframe` can't
-  convert a pandas `float64` column straight to `NUMERIC`.)
-- **Segmentation computed over full history, not just 2026**, in `int_orders_enriched`, then
-  filtered down to the exercise's target year only in the final mart. Otherwise a January 2026
-  order would look like a brand-new customer's first order even if they'd ordered several times
-  in late 2025, because the trailing-12-month window has to be able to see across the year boundary.
-- **BigQuery-idiomatic rolling window, not a self-join.** BigQuery's `RANGE BETWEEN` window
-  frame requires a numeric `ORDER BY` expression: `DATE` isn't accepted directly. The pattern
-  used is `order by UNIX_DATE(order_date) range between 365 preceding and 1 preceding`,
-  partitioned by `customer_id`: a single windowed pass per customer, no join, no row explosion.
-  Matters at the "billions of rows" scale the brief asks us to design for. Full walkthrough,
-  including a hand-verified worked example against a real customer's order history, in
+Each decision below follows the same pattern: what we did, then why, so it's clear these are
+deliberate tradeoffs rather than arbitrary defaults.
+
+**1. Raw BigQuery tables + dbt sources, not dbt seeds.**
+
+- *What*: the two Excel files are loaded into BigQuery once via a Python script
+  (`scripts/load_raw_data.py`), and dbt reads them as **sources** rather than loading them
+  itself as **seeds**.
+- *Why*: dbt's own guidance is that seeds are for small, static reference data, not real
+  transactional data, even at small volume. Reading from sources also mirrors how data would
+  actually arrive in a real company (via an ingestion tool), which is the more realistic,
+  production-like setup.
+
+**2. `FLOAT64` in raw, cast to `NUMERIC` in staging.**
+
+- *What*: money values (`net_sales`) are stored as the imprecise `FLOAT64` type in the raw
+  tables, then converted to the precise `NUMERIC` type in staging.
+- *Why*: raw tables should be an exact mirror of the source, not a cleaned-up version. All
+  type cleanup happens in exactly one place (staging), so every downstream model reads
+  already-correct data. There's also a practical reason: the Python library used to load the
+  data can't convert directly from `float64` to `NUMERIC`.
+
+**3. Segmentation is calculated across all order history, not just 2026, then filtered down later.**
+
+- *What*: the New/Returning/VIP logic runs against every order in the dataset (2025 and
+  2026), inside `int_orders_enriched`. Only the final table is trimmed down to just the 2026
+  rows the exercise asks for.
+- *Why*: a January 2026 order's "trailing 12 months" reaches back into 2025. Filtering to
+  2026 first would make a customer who'd ordered several times in late 2025 incorrectly look
+  brand new.
+
+**4. A rolling window calculation, not a self-join.**
+
+- *What*: counting each customer's orders in their preceding 365 days uses a SQL window
+  function (`RANGE BETWEEN ... PRECEDING`), not a join of the orders table against itself.
+- *Why*: a self-join compares every row to every other row for the same customer, which gets
+  expensive as the data grows. The window function computes the same result in a single
+  pass, directly relevant to the brief's requirement to design with "billions of rows" in
+  mind. Full explanation of this specific technique, including a hand-verified worked
+  example against a real customer's order history, in
   [`docs/Exercises_Queries.md`](docs/Exercises_Queries.md).
-- **Thresholds and labels centralized in a macro + vars**, not repeated/hardcoded SQL:
-  `dbt/macros/segment_from_order_count.sql` reads `returning_order_threshold` /
-  `vip_order_threshold` from `dbt/dbt_project.yml`. Year boundaries (`orders_mart_years`,
-  `segmentation_mart_year`) are
-  vars too: re-pointing either mart at a different period is a one-line change, not a
-  code edit.
-- **Partitioning and clustering on both marts**: partitioned by `order_date` (daily), clustered
-  by `customer_id` (`fct_orders`) or `order_segmentation` then `customer_id`
-  (`fct_orders_segmented`, since segment-filtered queries are the expected access pattern),
-  designed for scan-cost efficiency at scale, even though the actual data here is ~30k rows.
+
+**5. Segmentation thresholds and mart year boundaries live in one place, not hardcoded.**
+
+- *What*: the numbers that define New/Returning/VIP (1 and 4 prior orders) live in
+  `dbt_project.yml` as variables, read by `macros/segment_from_order_count.sql`. The years
+  each mart covers are variables too.
+- *Why*: if the business rule ever changes (e.g. VIP becomes 5+ orders instead of 4+), it's a
+  one-line change in one file, not a search-and-replace across multiple SQL files.
+
+**6. The two output tables are partitioned and clustered.**
+
+- *What*: `fct_orders` and `fct_orders_segmented` are partitioned by `order_date` and
+  clustered by `customer_id` (or by `order_segmentation` first, for the segmented table).
+- *Why*: this is a BigQuery-specific cost control. It lets a future query that filters by
+  date or customer scan only the relevant slice of the table instead of the whole thing. It
+  has almost no effect at this project's actual size (~30k rows), but it's exactly the kind
+  of setting that matters once a table has billions of rows, the scale the brief asks us to
+  design for.
 
 ### Why Ex1-3 aren't separate models
 
@@ -99,24 +128,62 @@ already in the marts. Instead they're documented SQL queries, verified two ways 
 
 ## Data quality notes
 
-- No nulls in either source file; no duplicate `order_id`s in `orders`.
-- `orders.net_sales` reconciles exactly with `SUM(sales.net_sales)` grouped by order, enforced
+**1. No nulls, no duplicate order IDs.**
+
+- *What*: confirmed directly in both source files, and enforced going forward by
+  `not_null`/`unique` tests on every key column.
+- *Why*: the most basic possible sanity check. If this failed, nothing built on top of it
+  could be trusted.
+
+**2. Order totals reconcile exactly with their sales lines.**
+
+- *What*: `orders.net_sales` matches `SUM(sales.net_sales)` for every single order, enforced
   by a singular test (`dbt/tests/assert_orders_net_sales_reconciles.sql`).
-- One known orphan: `order_id 5361303` appears in `sales` but has no matching row in `orders`
+- *Why*: this is the strongest available check that the two source files actually agree with
+  each other, not just that each one looks valid in isolation.
+
+**3. One known "orphan" order, deliberately a warning, not an error.**
+
+- *What*: `order_id 5361303` appears in `sales` but has no matching row in `orders`
   (2026-12-31, customer 1382673), present in the raw source file itself, not introduced by
-  this pipeline. Rather than silently dropping it or failing the *entire* build over one known
-  row, the `relationships` generic test on `stg_sales.order_id` is configured at `warn`
-  severity instead of `error`. This means: `dbt build` always surfaces it (visible in the run
-  output as `WARN 1`, never silently swallowed), but doesn't block every future build over an
-  unfixable row in someone else's source data. If a *new* orphan ever appeared, the warning
-  count would increase and be just as visible; if this one were fixed upstream, the warning
-  would disappear on its own. No dbt code change needed either way. See
-  `dbt/models/staging/_staging.yml`.
-- Known left-censoring limitation in the segmentation (Ex5/Ex6): the dataset only starts
-  2025-07-09, so orders placed early in that window can be undercounted as "New" relative to a
-  customer's true, unobserved, pre-extract order history. This is a data-boundary limitation
-  inherent to the extract, not a pipeline bug, and it self-corrects over time as more history
-  accumulates within the dataset.
+  this pipeline. The `relationships` test that checks this is configured at `warn` severity
+  instead of `error`. See `dbt/models/staging/_staging.yml`.
+- *Why*: a hard error would fail the *entire* build, every single time, over one row in
+  someone else's data that can't be fixed from here. `warn` keeps it visible in every run
+  (`WARN 1` in the output, never silently swallowed) without blocking everything else. If a
+  *new* orphan ever appeared, the warning count would increase and be just as visible; if
+  this one were fixed upstream, the warning would disappear on its own, no code change needed
+  either way.
+
+**4. A known limitation in the segmentation logic, not a bug.**
+
+- *What*: the dataset only starts 2025-07-09, so orders placed early in that window can be
+  undercounted as "New" relative to a customer's true, unobserved, pre-extract order history.
+- *Why*: this is a boundary of the data extract itself, not something the pipeline computes
+  incorrectly. Worth stating explicitly rather than leaving it as a silent blind spot; it
+  self-corrects over time as more history accumulates within the dataset.
+
+## What the .yml files are for
+
+dbt splits two different things into two different file types. **SQL files** hold the actual
+transformation logic (the `SELECT` that produces a table). **YAML files** hold everything
+*about* that SQL: descriptions, column documentation, tests, and configuration. Every folder
+under `dbt/models/` has an underscore-prefixed `.yml` file (`_sources.yml`, `_staging.yml`,
+`_intermediate.yml`, `_marts.yml`) alongside its `.sql` model files.
+
+- *What*: each model's `.yml` file lists its columns, a plain-English description of each
+  one, and the tests attached to it (`not_null`, `relationships`, etc.). `_sources.yml` does
+  the same for the raw tables dbt reads from. `dbt_project.yml` holds project-wide
+  configuration: the `vars` (year boundaries, segmentation thresholds) and which folder gets
+  which materialization (view vs. table). `packages.yml` declares external dependencies
+  (`dbt_utils`). The one YAML file deliberately *not* in this repo is `profiles.yml`,
+  which holds the BigQuery connection details and stays entirely outside version control.
+- *Why*: keeping tests and documentation in YAML rather than scattered as SQL comments means
+  dbt can actually *read* them, not just display them for a human. That's what makes `dbt
+  test` a runnable command instead of a manual checklist, and it's what makes the
+  auto-generated documentation site (see below) possible at all. It's also why tests live
+  right next to the model they test, rather than in a separate test suite that's easy to
+  forget to update.
 
 ## Documentation site
 
@@ -136,11 +203,18 @@ dbt docs serve
 
 ## Testing
 
-42 dbt tests across staging/intermediate/marts, all passing against real BigQuery data:
-generic tests (`unique`, `not_null`, `relationships` in both directions between orders and
-sales, `accepted_values` on the segmentation labels, `dbt_utils.expression_is_true` asserting
-non-negative `net_sales`/`qty`) plus the singular net_sales reconciliation test described
-above.
+- *What*: 42 dbt tests spread across staging, intermediate, and marts, all passing against
+  real BigQuery data, both locally and automatically in CI.
+- *Why*: a test turns "I think this is right" into "the pipeline proves this is right, every
+  single run." Each category below is aimed at a different kind of mistake:
+
+| Test type | What it checks | Why it matters |
+| --- | --- | --- |
+| `unique` / `not_null` | Every row has a real, unique key and no missing required values | Catches a broken join or an accidental duplicate before it silently corrupts downstream numbers |
+| `relationships` (both directions) | Every sales line has a matching order, and every order has at least one sales line | Catches data that's fallen out of sync between the two source files |
+| `accepted_values` | `order_segmentation` is always exactly `New`, `Returning`, or `VIP` | Catches a typo or a logic bug producing an unexpected label |
+| `dbt_utils.expression_is_true` | `net_sales` and `qty` are never negative | Catches obviously invalid data before it reaches a report |
+| Singular test (`assert_orders_net_sales_reconciles.sql`) | Each order's total matches the sum of its sales lines | The strongest available cross-check that the two source files actually agree |
 
 ```bash
 dbt build   # runs all models + all tests, in dependency order
