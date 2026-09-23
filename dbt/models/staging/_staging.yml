@@ -8,10 +8,18 @@ models:
       casts net_sales to NUMERIC for money-safe precision.
     columns:
       - name: order_id
-        description: Unique order identifier.
+        description: >
+          Unique order identifier. Every order is expected to have at least one matching
+          sales line (verified: true for 100% of orders in the current data) -- checked
+          explicitly here rather than just assumed, so a future order with zero sales lines
+          would be caught.
         data_tests:
           - unique
           - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_sales')
+                field: order_id
       - name: customer_id
         description: Identifier of the customer who placed the order.
         data_tests:
@@ -21,9 +29,13 @@ models:
         data_tests:
           - not_null
       - name: net_sales
-        description: Net sales amount for the order.
+        description: Net sales amount for the order. Expected non-negative -- verified true
+          for all current data, enforced going forward by the expression_is_true test below.
         data_tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
 
   - name: stg_sales
     description: >
@@ -58,10 +70,16 @@ models:
         data_tests:
           - not_null
       - name: net_sales
-        description: Net sales amount for this order/product line.
+        description: Net sales amount for this order/product line. Expected non-negative.
         data_tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
       - name: qty
-        description: Quantity of the product sold on this line.
+        description: Quantity of the product sold on this line. Expected non-negative.
         data_tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"

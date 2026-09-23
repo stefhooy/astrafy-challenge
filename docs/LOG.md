@@ -202,9 +202,41 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   in scope for now, the reply should just be the GitHub repo link, no PDF/Data Studio link
   expected at this stage.
 
+## 2026-09-23
+
+- Did a critical self-review of data engineering standards against the actual code (not just
+  the checklist), prompted by prepping for Friday's interview. Found real gaps: `dbt_utils`
+  was declared as a dependency but never actually used anywhere in the project (confirmed via
+  grep); the orphan-order relationships test only checked sales->orders, never the reverse
+  (orders->sales); no test asserted non-negative `net_sales`/`qty`; every model is a full
+  `table` rebuild with no incremental strategy despite the brief's billions-of-rows framing;
+  no CI.
+- Fixed the quick, concrete ones:
+  - Added `dbt_utils.expression_is_true` tests (`>= 0`) on `stg_orders.net_sales`,
+    `stg_sales.net_sales`, and `stg_sales.qty` -- puts the previously-unused `dbt_utils`
+    dependency to real use, and turns a manually-verified fact ("no negative values in this
+    data") into an enforced guarantee.
+  - Added the missing reverse `relationships` test: `stg_orders.order_id` -> `stg_sales`,
+    confirming every order has at least one sales line (error severity, not warn -- this
+    direction has zero known exceptions, unlike the sales->orders direction).
+  - `dbt test --select staging`: 16 PASS, 1 WARN (same known orphan, unaffected), 0 ERROR --
+    new tests pass cleanly.
+- Added `.github/workflows/dbt_build.yml`: a basic CI workflow running `dbt deps` + `dbt build`
+  against BigQuery on every push, using a service-account key stored as a GitHub Actions secret
+  (`GCP_SA_KEY` + `GCP_PROJECT_ID`). Builds into an isolated `dbt_ci` target/dataset, separate
+  from the local `dbt_dev` one, so CI runs never clobber local dev state. Documented as a real
+  production-readiness gap that's now closed, rather than just explained away verbally.
+- Left two gaps as documented, explained tradeoffs rather than implemented, given take-home
+  scope: incremental materialization (would matter at real billions-of-rows scale; not
+  necessary at this data's actual ~30k row volume) and dev/prod environment separation (only
+  one real environment exists for a solo take-home; the CI target already demonstrates the
+  pattern of environment-specific targets/datasets).
+
 ### Next up
 
 - Final review pass before submission (re-read design spec, README, and all dbt docs for
   consistency).
+- Add the `GCP_SA_KEY`/`GCP_PROJECT_ID` secrets to the GitHub repo so the new CI workflow
+  actually runs, and confirm it passes on GitHub's side (not just locally).
 - Reply to the recruiter's take-home email with the GitHub repo link, per the brief's
   submission instructions (Part 1 only -- no PDF/Data Studio link expected).
