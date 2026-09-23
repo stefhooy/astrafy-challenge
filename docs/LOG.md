@@ -258,10 +258,15 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   implement it -- a new dependency this close to the interview adds risk for limited payoff at
   this data's actual ~30k-row scale.
 
+- Enabled GitHub Pages (Settings -> Pages -> Source: GitHub Actions). First deploy failed:
+  "Branch 'dev' is not allowed to deploy to github-pages due to environment protection
+  rules" -- GitHub's `github-pages` environment defaults to only allowing the repo's default
+  branch. Fixed via Settings -> Environments -> github-pages -> Deployment branches -> added
+  `dev`. Re-ran the job, deploy succeeded. **Live docs site confirmed working:
+  <https://stefhooy.github.io/astrafy-challenge/>**
+
 ### Next up
 
-- Enable GitHub Pages (Settings -> Pages -> Source: GitHub Actions) so `dbt_docs.yml` can
-  actually publish, then confirm the live docs link works.
 - Rotate the `dbt-runner` service account key (see note above) and update the local
   `profiles.yml` + GitHub secret to match.
 - Final review pass before submission (re-read design spec, README, and all dbt docs for
