@@ -43,27 +43,33 @@ projects).
 Uses [`uv`](https://docs.astral.sh/uv/) (a fast Python package/environment manager) rather
 than plain `pip`/`venv`: it resolves and installs packages significantly faster (a Rust-based
 resolver instead of `pip`'s pure-Python one), which matters here since `dbt-core` pulls in a
-fairly large dependency tree. `uv venv` creates the virtual environment, and `uv pip install`
-is a drop-in replacement for `pip install` that reads/writes the same environment, so
-everything downstream (activating the venv, running `dbt`, etc.) works exactly as it would
-with plain `pip`. From the repo root:
+fairly large dependency tree.
+
+Dependencies are declared in `pyproject.toml` (direct dependencies, pinned) and fully locked
+in `uv.lock` (every direct *and* transitive dependency, exact versions, with hashes), so
+anyone running this reproduces the exact same environment rather than whatever the latest
+package releases happen to be at install time. From the repo root:
 
 ```bash
 cd "/c/Users/steve/OneDrive/Astrafy/astrafy-challenge"
-uv venv
+uv sync
 source .venv/Scripts/activate   # Git Bash on Windows
-uv pip install dbt-core dbt-bigquery google-cloud-bigquery
 ```
+
+`uv sync` reads `pyproject.toml`/`uv.lock` and creates `.venv` with exactly those pinned
+versions installed, no separate `uv venv` step needed. You can also skip activation entirely
+and run one-off commands with `uv run` instead, e.g. `uv run dbt debug`.
 
 (PowerShell equivalent for activation: `.venv\Scripts\Activate.ps1`)
 
-No `uv`? The plain `pip`/`venv` equivalent works the same way:
+No `uv`? The plain `pip`/`venv` equivalent, using the same pinned versions from
+`pyproject.toml`:
 
 ```bash
 python -m venv .venv
 source .venv/Scripts/activate
 pip install --upgrade pip
-pip install dbt-core dbt-bigquery google-cloud-bigquery
+pip install dbt-core==1.12.5 dbt-bigquery==1.12.1 google-cloud-bigquery==3.45.2 pandas==3.0.6 openpyxl==3.1.5
 ```
 
 ## 5. dbt connection profile

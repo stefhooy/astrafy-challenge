@@ -277,6 +277,26 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   as if written after the fact) with `docs/LOG.md` as the source of truth for what actually
   happened and where reality diverged from the plan.
 
+- Noticed a real gap while prepping interview answers: there was no `pyproject.toml` or
+  `requirements.txt` pinning the Python dependency versions used, `docs/SETUP.md` said what
+  to install but not the exact versions, so a fresh clone months from now could pull
+  different (possibly incompatible) versions. Fixed by adding `pyproject.toml` (direct
+  dependencies, pinned: dbt-core 1.12.5, dbt-bigquery 1.12.1, google-cloud-bigquery 3.45.2,
+  pandas 3.0.6, openpyxl 3.1.5) and running `uv lock` to generate `uv.lock`, which pins the
+  full transitive dependency tree (108 packages) with hashes.
+- Deleted the old ad-hoc `.venv` and rebuilt it purely from `uv sync` (no manual `uv pip
+  install` commands), to prove the lock file alone is sufficient to reproduce a working
+  environment. Hit and resolved two unrelated Windows issues along the way: OneDrive file
+  locks during `uv sync` (project folder lives inside a OneDrive-synced directory, resolved
+  by retrying/deleting and rebuilding fresh) and a locked `.pyd`/`.exe` from a lingering
+  Python process (resolved by closing VS Code before deleting `.venv`).
+- Ran `dbt debug` + `dbt build` against the freshly-rebuilt, lock-file-only environment:
+  **47 PASS, 1 WARN (the expected orphan), 0 ERROR**, identical to every prior run, real
+  proof the environment is now genuinely reproducible from `pyproject.toml`/`uv.lock` alone.
+- Updated `docs/SETUP.md` and `README.md`'s setup steps to use `uv sync` instead of the old
+  ad-hoc `uv pip install dbt-core dbt-bigquery google-cloud-bigquery` command, plus a
+  version-pinned `pip` fallback for anyone without `uv`.
+
 ### Next up
 
 - Final review pass before submission (re-read design spec, README, and all dbt docs for

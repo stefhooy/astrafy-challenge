@@ -226,6 +226,8 @@ isolated `dbt_ci` target/dataset. See the repo's **Actions** tab.
 ## Repo layout
 
 ```text
+pyproject.toml                : Python dependencies (direct, pinned)
+uv.lock                       : full dependency lock (direct + transitive, exact versions)
 data/                         : raw source xlsx files
 scripts/load_raw_data.py      : one-off loader: xlsx -> raw BigQuery tables
 dbt/
@@ -251,8 +253,9 @@ in [`docs/SETUP.md`](docs/SETUP.md). Short version:
 
 1. Create a GCP project, enable the BigQuery API, create a service account with
    `BigQuery Data Editor` + `BigQuery Job User`, download its JSON key.
-2. `uv venv && uv pip install dbt-core dbt-bigquery google-cloud-bigquery` (or any Python
-   package manager).
+2. `uv sync` (reads `pyproject.toml`/`uv.lock` and creates `.venv` with exact pinned
+   versions), then activate it (`source .venv/Scripts/activate`, or `.venv\Scripts\Activate.ps1`
+   on PowerShell).
 3. Configure `~/.dbt/profiles.yml` with a `service-account` connection pointing at that key
    (see `docs/SETUP.md` for the exact YAML).
 4. Load the raw data:
