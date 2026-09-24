@@ -319,9 +319,23 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   `dbt/seeds/README.md` stating explicitly why it's empty and what would go there if ever
   needed.
 
-### Next up
-
-- Final review pass before submission (re-read design spec, README, and all dbt docs for
-  consistency).
-- Reply to the recruiter's take-home email with the GitHub repo link, per the brief's
-  submission instructions (Part 1 only, no PDF/Data Studio link expected).
+- Closed the single most-cited gap in the testing story (repeated across every prep answer as
+  "a known limitation"): nothing automatically verified segmentation *correctness*, only its
+  *shape* (`accepted_values` on the label). Added
+  `dbt/tests/assert_segmentation_matches_known_customer_history.sql`: a golden-record
+  regression test hardcoding customer 146283's hand-verified 5-order segment sequence (from
+  `Exercises_Queries.md`) and asserting the pipeline's actual output matches exactly,
+  including the cross-year-boundary case and the window-aging-out case. `dbt build --select
+  assert_segmentation_matches_known_customer_history`: 1 of 1 PASS. Full `dbt build`
+  afterward: **48 PASS, 1 WARN (the expected orphan), 0 ERROR**, 43 tests total (was 42).
+  Updated README's testing table and the Exercise 5 section in `Exercises_Queries.md` to
+  reference this new test.
+- Added a "Known limitations & future improvements" section to `README.md`. First draft had
+  6 items, but on review most weren't actually tied to Part 1's stated requirements (they'd
+  come from the broader "what should a good data engineer know" conversation, not the brief
+  itself); one even referenced Part 2 being out of scope, risky to mention in a submission
+  meant to stay Part-1-only. Trimmed to the two genuinely scoped to Part 1: no incremental
+  materialization (directly tied to the "Performance & Cost... billions of rows" requirement)
+  and no CD for the pipeline (reworded to be fully self-contained, no Part 2 reference).
+  Dropped: dev/prod separation, data observability tooling, manual GCP setup vs Terraform,
+  and the `qty_product` interpretation note (already covered elsewhere, redundant here).

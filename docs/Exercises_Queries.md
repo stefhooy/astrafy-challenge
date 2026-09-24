@@ -291,6 +291,14 @@ window, and this customer's cadence (roughly one order every 2-4 months) never q
 five orders into one year-long window. That's the segmentation rule doing real, non-trivial
 work, not just a threshold on lifetime order count.
 
+This worked example isn't just a manual sanity check, it's also encoded as an automated
+regression test: `dbt/tests/assert_segmentation_matches_known_customer_history.sql` asserts
+this exact customer's full segment sequence programmatically, on every `dbt build`. The
+generic `accepted_values` test only guarantees `order_segment` is one of the three allowed
+strings; this singular test guarantees it's the *correct* one, for a case with a known,
+hand-verified right answer, catching a future regression in the windowing logic or the
+thresholds that `accepted_values` alone never would.
+
 ## Exercise 6: 2026 orders table with order_segmentation
 
 Model: `models/marts/fct_orders_segmented.sql`. Filters `int_orders_enriched` to

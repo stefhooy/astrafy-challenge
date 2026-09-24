@@ -203,7 +203,7 @@ dbt docs serve
 
 ## Testing
 
-- *What*: 42 dbt tests spread across staging, intermediate, and marts, all passing against
+- *What*: 43 dbt tests spread across staging, intermediate, and marts, all passing against
   real BigQuery data, both locally and automatically in CI.
 - *Why*: a test turns "I think this is right" into "the pipeline proves this is right, every
   single run." Each category below is aimed at a different kind of mistake:
@@ -215,6 +215,7 @@ dbt docs serve
 | `accepted_values` | `order_segmentation` is always exactly `New`, `Returning`, or `VIP` | Catches a typo or a logic bug producing an unexpected label |
 | `dbt_utils.expression_is_true` | `net_sales` and `qty` are never negative | Catches obviously invalid data before it reaches a report |
 | Singular test (`assert_orders_net_sales_reconciles.sql`) | Each order's total matches the sum of its sales lines | The strongest available cross-check that the two source files actually agree |
+| Singular test (`assert_segmentation_matches_known_customer_history.sql`) | A known customer's full order history segments exactly as hand-verified (New, then Returning across a year boundary and a window-aging-out case) | `accepted_values` only checks the label is a valid string; this checks it's the *correct* one, the one test that verifies segmentation correctness, not just shape |
 
 ```bash
 dbt build   # runs all models + all tests, in dependency order
@@ -222,6 +223,30 @@ dbt build   # runs all models + all tests, in dependency order
 
 Also runs automatically in CI (`.github/workflows/dbt_build.yml`) on every push, against an
 isolated `dbt_ci` target/dataset. See the repo's **Actions** tab.
+
+## Known limitations & future improvements
+
+Deliberate scope decisions, not oversights, each one a real tradeoff made given this
+project's actual scale (a solo take-home, ~30k rows) versus what a production system at real
+scale would need.
+
+**1. No incremental materialization.**
+
+- *What*: every model is a full-rebuild `table`, not `materialized='incremental'`.
+- *Why not fixed*: at billions of rows, rebuilding `fct_orders` from scratch on every run
+  would be expensive, incremental models would matter there. At this project's actual volume
+  it adds no benefit, and a full rebuild has a real correctness advantage for a take-home: it
+  automatically absorbs any backfilled/corrected historical order with zero extra logic.
+
+**2. No CD for the pipeline itself (data promotion or scheduled runs).**
+
+- *What*: CI verifies correctness on every push; nothing automatically promotes data to a
+  separate production dataset or runs on a schedule. (The docs site *does* auto-publish on
+  every push, that's a small, genuine exception.)
+- *Why not fixed*: CD only earns its cost once there's a real downstream consumer depending
+  on fresh, promoted data on a schedule. This take-home has a single environment and a
+  static, one-time data extract, nothing that would ever need a scheduled refresh, so there's
+  no real target for a CD step to serve yet.
 
 ## Repo layout
 
