@@ -202,11 +202,54 @@ it (not including the order itself), then bucket:
 | 1-3 | Returning |
 | 4+ | VIP |
 
+Maps directly to the brief's own wording:
+
+| Brief's wording | Count | Label |
+| --- | --- | --- |
+| "did not place any orders" in the prior 12 months | 0 | New |
+| "had already placed between 1 and 3 orders" | 1-3 | Returning |
+| "had already placed at least 4 orders or more" | 4+ | VIP |
+
+**This is purely a frequency count, not a value-weighted score.** Only the *number* of prior
+orders is considered, never their monetary value, product mix, or spacing. A customer with
+three small orders and a customer with three large orders in the same trailing window get the
+identical segment. This deliberately matches the brief's own definition, which only uses
+ordinal/count language ("1st order," "2nd-4th order," "5th or more"), never mentions spend.
+Worth contrasting explicitly with the more common real-world RFM model (Recency, Frequency,
+Monetary), which would also weigh recency and spend, that's a different, unasked question,
+not a more thorough answer to this one.
+
+**This is an order-level label, not a customer-level one.** The brief asks for "the segment
+of this order," so the same customer can carry different segments on different orders over
+time (New on their first order, Returning later, possibly VIP eventually), never a single
+permanent label per customer. The count driving it is specifically "this customer's orders in
+the 365 days *before this particular order*," not their lifetime order count.
+
 Implemented in `models/intermediate/int_orders_enriched.sql` via a windowed count (see the
 design spec / interview prep notes for the full `RANGE BETWEEN` / `UNIX_DATE` explanation),
 computed over **all** order history so a 2026 order's window correctly reaches back into 2025
 data, then labeled by `macros/segment_from_order_count.sql`, with the thresholds (1, 4) as
 `vars` in `dbt_project.yml`, not hardcoded.
+
+The count (`models/intermediate/int_orders_enriched.sql`):
+
+```sql
+count(*) over (
+    partition by customer_id
+    order by unix_date(order_date)
+    range between 365 preceding and 1 preceding
+) as prior_orders_last_12mo
+```
+
+The label (`macros/segment_from_order_count.sql`):
+
+```sql
+case
+    when prior_orders_last_12mo >= {{ var('vip_order_threshold') }} then 'VIP'
+    when prior_orders_last_12mo >= {{ var('returning_order_threshold') }} then 'Returning'
+    else 'New'
+end
+```
 
 **Concrete proof this actually uses cross-year history**: customer `146283` placed 5 orders
 between September 2025 and November 2026. Querying `int_orders_enriched` directly (which holds
