@@ -309,6 +309,16 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   live "what-if" modification scenarios, a same-day-orders edge case, BigQuery cost
   literacy) into `project-walkthrough-fr.md` (outside the repo, personal prep only).
 
+- Noticed `dbt/seeds/` was empty (and, since git doesn't track empty directories, wasn't even
+  in the GitHub repo, only present locally, leftover scaffolding from `dbt` project init,
+  never used since sources were chosen over seeds). Checked every other `dbt/` subfolder for
+  similar leftovers; all others are legitimately populated. Considered removing it entirely
+  vs. keeping it documented; kept it, since an unused-but-explained folder is more consistent
+  with how the rest of the repo treats deliberate non-implementations (incremental models,
+  Terraform, Elementary) than either silently removing it or leaving it unexplained. Added
+  `dbt/seeds/README.md` stating explicitly why it's empty and what would go there if ever
+  needed.
+
 ### Next up
 
 - Final review pass before submission (re-read design spec, README, and all dbt docs for
