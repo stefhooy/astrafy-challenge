@@ -277,6 +277,8 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   as if written after the fact) with `docs/LOG.md` as the source of truth for what actually
   happened and where reality diverged from the plan.
 
+## 2026-09-24
+
 - Noticed a real gap while prepping interview answers: there was no `pyproject.toml` or
   `requirements.txt` pinning the Python dependency versions used, `docs/SETUP.md` said what
   to install but not the exact versions, so a fresh clone months from now could pull
@@ -296,6 +298,16 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
 - Updated `docs/SETUP.md` and `README.md`'s setup steps to use `uv sync` instead of the old
   ad-hoc `uv pip install dbt-core dbt-bigquery google-cloud-bigquery` command, plus a
   version-pinned `pip` fallback for anyone without `uv`.
+- Verified a VS Code "dbt Power User" extension error (red `dbt_project.yml`, "dbt not
+  found") was a local extension misconfiguration (wrong Python interpreter selected), not a
+  real problem with the file, `dbt build` had been passing the whole time. Fixed by pointing
+  VS Code at the project's `.venv` interpreter.
+- Spent the rest of the day on interview preparation (technical, in French, with Cyril):
+  consolidated the full architecture story, every major decision with real alternatives
+  considered, known traps (the orphan order in full depth, key numbers, AI-use disclosure),
+  and today's technical deep-dives (views vs tables rationale, test-count clarification,
+  live "what-if" modification scenarios, a same-day-orders edge case, BigQuery cost
+  literacy) into `project-walkthrough-fr.md` (outside the repo, personal prep only).
 
 ### Next up
 
