@@ -339,3 +339,11 @@ bottom. Companion to [`SETUP.md`](SETUP.md) (the how-to) and
   and no CD for the pipeline (reworded to be fully self-contained, no Part 2 reference).
   Dropped: dev/prod separation, data observability tooling, manual GCP setup vs Terraform,
   and the `qty_product` interpretation note (already covered elsewhere, redundant here).
+- Found a real gap while double-checking tooling before the interview: `sqlfluff`/
+  `sqlfluff-templater-dbt` had been installed ad-hoc (`uv pip install`) before
+  `pyproject.toml` existed, so they were never declared there. When `.venv` was later
+  deleted and rebuilt purely from `uv sync`, they got silently dropped, since `uv sync`
+  reconciles the environment to exactly what's declared, nothing more. Fixed by adding them
+  as a `dev` dependency group in `pyproject.toml`, re-running `uv lock` (118 packages
+  resolved) and `uv sync` (confirmed both packages reinstalled at their original pinned
+  versions, 4.3.0). Now tracked, won't silently disappear on a future rebuild.
